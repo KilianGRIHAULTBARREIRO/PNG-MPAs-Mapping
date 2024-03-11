@@ -11,12 +11,12 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(sf)
 library(tidyverse)
-library(pdftools)
 library(rnaturalearth)
 library(wdpar)
+library(RColorBrewer)
 ```
 
-# Data import from ARCGIS and rnaturalearth
+# Data import from ARCGIS and rnaturalearth 
 ```{r}
 papua_n_g <- rnaturalearth::ne_countries(country = "papua new guinea", scale = "large") %>%
   select(name)
@@ -36,7 +36,7 @@ shp_Top30_PA <- sf::st_read(dsn = "C:/Users/uqkgriha/Documents/Papoua New Guinea
 
 shp_MarPOWPA <- sf::st_read(dsn = "C:/Users/uqkgriha/Documents/Papoua New Guinea/Marine POWPA - Difference in Selection Frequency/") %>%
   sf::st_transform(crs = st_crs(papua_n_g)) %>%
-  sf::st_difference(st_difference(papua_n_g))
+  sf::st_difference(st_difference(papua_n_g)) 
 ```
 
 # NEW MPAS
@@ -69,10 +69,7 @@ data2polygon <- function(data) {
     dplyr::summarize(do_union=FALSE) %>% 
     st_cast("POLYGON")
 }
-```
 
-## proposed MPAs
-```{r, warning=FALSE}
 LYRES_REEF_NUGURIA_ISLAND <- data.frame(
   Points = 1:10,
   Latitude = c("3° 17' 23\" S", "4° 14' 58\" S", "4° 13' 21\" S", "2° 49' 13\" S", "2° 33' 41\" S",
@@ -121,35 +118,54 @@ POCKLINGTON_REEF_MILNE_BAY_PROV <- data2polygon(POCKLINGTON_REEF_MILNE_BAY_PROV)
 ```
 
 
-# Plot test 
+# Display 
 ```{r}
-custom_theme <- theme_minimal() +
-  theme(panel.background = element_rect(fill = "lightblue"))
+# Définir une palette de couleurs colorblind-friendly
+palette <- brewer.pal(10, "Set1")
 
-PNGmap <- ggplot() +
-  geom_sf(data = papua_n_g, fill = "white") +
+# Définir la fonction pour le thème personnalisé
+custom_theme <- function() {
+  theme_minimal() +
+  theme(panel.background = element_rect(fill = "lightblue"))
+}
+
+# Définir la fonction pour créer le graphique
+create_png_map <- function() {
+  ggplot() +
+  geom_sf(data = papua_n_g, fill = "lightgrey") +
   geom_sf(data = png_mpas, aes(fill = "Actual MPAs"), show.legend = "polygon") +
-  geom_sf(data = shp_Top30_PA, alpha = 0.3, aes(fill = "Top 30 PA"), show.legend = "polygon") +
-  geom_sf(data = shp_PAI, alpha = 0.3, aes(fill = "PAI"), show.legend = "polygon") +
-  geom_sf(data = shp_MarPOWPA, alpha = 0.3, aes(fill = shp_MarPOWPA$Symb10b20), show.legend = "polygon") +
+  geom_sf(data = shp_PAI, alpha = 0.8, aes(fill = "Priority areas of interest"), show.legend = "polygon") +
+  geom_sf(data = shp_Top30_PA, alpha = 0.8, aes(fill = "Top 30 Priority Areas"), show.legend = "polygon") +
+  # geom_sf(data = shp_MarPOWPA, show.legend = "polygon") +
   geom_sf(data = LYRES_REEF_NUGURIA_ISLAND, aes(fill = "Lyres reef Nuguria"), show.legend = "polygon") +
   geom_sf(data = EAST_COAST_NAMATANAI, aes(fill = "East coast Namatanai"), show.legend = "polygon") +
   geom_sf(data = AROB, aes(fill = "Arob"), show.legend = "polygon") +
-  geom_sf(data = POCKLINGTON_REEF_MILNE_BAY_PROV, aes(fill = "Pocklington Reef Milne Bay Prov"), show.legend = "polygon") +
+  geom_sf(data = POCKLINGTON_REEF_MILNE_BAY_PROV, aes(fill = "Pocklington Reef Milne Bay"), show.legend = "polygon") +
+  scale_fill_manual(values = palette) +  # Utiliser la palette de couleurs
   labs(title = "MPAs in Papua New Guinea",
        fill = "Legend") +
-  # scale_fill_manual(values = c("red4", "blue", "green", "black"), 
-  #                   labels = c("MPAs", "Top 30 PA", "PAI", "Pocklington Reef Milne Bay Prov"),
-  #                   guide = guide_legend(title.position = "top", 
-  #                                        title.hjust = 0.5,
-  #                                        label.hjust = 0.5,
-  #                                        label.position = "bottom",
-  #                                        nrow = 4)) +
-  custom_theme
-  
-# ggplot2::ggsave(filename = "C:/Users/uqkgriha/Documents/Papoua New Guinea/mapPNG.jpeg", dpi = 600)
+  custom_theme() +
+  theme(legend.text = element_text(size = 8)) 
+}
 
+# Créer le graphique
+create_png_map()
 
+# ggplot2::ggsave(filename = "C:/Users/uqkgriha/Documents/Papoua New Guinea/mapPNG_shpadded.jpeg", dpi = 1000)
+```
+# POWPA Program
+```{r}
+shp_MarPOWPA$Symb10b20_cat <- cut(shp_MarPOWPA$Symb10b20, 
+                                  breaks = c(-Inf, -4, -2, -1, 1, 4, Inf), 
+                                  labels = c("Habitat Only Scenario", "-4", "-2", "Always Low Priority", "4", "Habitat and Species Scenario"),
+                                  include.lowest = TRUE)
+
+# Afficher la carte en utilisant les catégories comme couleur
+ggplot() +
+  geom_sf(data = papua_n_g, fill = "white") +
+  geom_sf(data = shp_MarPOWPA, aes(fill = Symb10b20_cat), alpha = 0.3) +
+  labs(title = "MPAs in Papua New Guinea",
+       fill = "Symb10b20 Category")
 ```
 
 # Data extraction
